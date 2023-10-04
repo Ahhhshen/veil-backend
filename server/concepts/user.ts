@@ -7,6 +7,11 @@ export interface UserDoc extends BaseDoc {
   password: string;
 }
 
+/**
+ * Purpose: Authenticate users
+ * Principle: after a user registers with a username and password, they can
+ * authenticate as that user by providing a matching username and password
+ */
 export default class UserConcept {
   public readonly users = new DocCollection<UserDoc>("users");
 

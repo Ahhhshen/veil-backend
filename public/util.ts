@@ -11,6 +11,8 @@ type operation = {
 };
 
 const operations: operation[] = [
+  // ########################################################
+  // User & Session
   {
     name: "Get Session User (logged in user)",
     endpoint: "/api/session",
@@ -53,6 +55,8 @@ const operations: operation[] = [
     method: "GET",
     fields: { username: "input" },
   },
+  // ########################################################
+  // Post
   {
     name: "Get Posts (empty for all)",
     endpoint: "/api/posts",
@@ -77,6 +81,40 @@ const operations: operation[] = [
     method: "DELETE",
     fields: { id: "input" },
   },
+  // ########################################################
+  // Tag
+  {
+    name: "Create Tag for Posts",
+    endpoint: "/api/tags/:name :posts",
+    method: "POST",
+    fields: { name: "input", posts: "input" },
+  },
+  {
+    name: "Get Tags by Author",
+    endpoint: "/api/tags",
+    method: "GET",
+    fields: { author: "input" },
+  },
+  {
+    name: "Get Tags by Post",
+    endpoint: "/api/tags/:post",
+    method: "GET",
+    fields: { post: "input" },
+  },
+  {
+    name: "Update Tag",
+    endpoint: "/api/tags/:id",
+    method: "PATCH",
+    fields: { id: "input", update: { name: "input", posts: "input" } },
+  },
+  {
+    name: "Delete Tag",
+    endpoint: "/api/tags/:id",
+    method: "DELETE",
+    fields: { id: "input" },
+  },
+  // ########################################################
+  // Discovery
 ];
 
 // Do not edit below here.

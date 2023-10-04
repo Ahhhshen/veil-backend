@@ -97,9 +97,14 @@ export class Router {
   private makeRoute(f: Function) {
     return async (req: Request, res: Response) => {
       const reqMap = (name: string) => {
+        // session, param, query, body are special cases, they will be passed directly
         if (name === "session" || name == "param" || name == "query" || name == "body") {
           return req[name];
         }
+        // all other params are exported form these 3 places in order
+        // 1. req.params (e.g., /posts/:_id) String only
+        // 2. req.query (e.g., /posts?_id=...) String only
+        // 3. req.body (e.g., /posts with body {_id: ...}) any JSON-supported type
         const ret = req.params[name] || req.query[name] || req.body[name];
         if (ret === undefined || ret === null) {
           // TODO: Can we know if this param was required?
@@ -163,7 +168,7 @@ export class Router {
   }
 }
 
-export function getExpressRouter(routes: Object) {
+export function getExpressRouter(routes: object) {
   const router = new Router();
 
   // Get all methods in the Routes class (e.g., getUsers, createUser, etc).

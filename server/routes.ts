@@ -2,13 +2,16 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Friend, Post, User, WebSession } from "./app";
+import { Friend, Post, Tag, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
+import { TagDoc } from "./concepts/tag";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
 import Responses from "./responses";
 
 class Routes {
+  // ########################################################
+  // User & Session Routes
   @Router.get("/session")
   async getSessionUser(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
@@ -57,6 +60,8 @@ class Routes {
     return { msg: "Logged out!" };
   }
 
+  // ########################################################
+  // Post Routes
   @Router.get("/posts")
   async getPosts(author?: string) {
     let posts;
@@ -90,6 +95,8 @@ class Routes {
     return Post.delete(_id);
   }
 
+  // ########################################################
+  // Friend Routes
   @Router.get("/friends")
   async getFriends(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
@@ -136,6 +143,50 @@ class Routes {
     const fromId = (await User.getUserByUsername(from))._id;
     return await Friend.rejectRequest(fromId, user);
   }
+
+  // ########################################################
+  // Tag Routes
+  @Router.post("/tags/:name :posts")
+  async createTag(session: WebSessionDoc, name: string, posts: ObjectId[]) {
+    const user = WebSession.getUser(session);
+    const created = await Tag.create(user, name, posts);
+    return { msg: created.msg, tag: await Responses.tag(created.tag) };
+  }
+
+  @Router.get("/tags")
+  async getUserTags(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    return await Responses.tags(await Tag.getByAuthor(user));
+  }
+
+  @Router.get("/tags/:post")
+  async getPostTags(post: string) {
+    const postId = new ObjectId(post);
+    return await Responses.tags(await Tag.getByPost(postId));
+  }
+
+  @Router.patch("/tags/:_id")
+  async updateTag(session: WebSessionDoc, _id: ObjectId, update: Partial<TagDoc>) {
+    const user = WebSession.getUser(session);
+    await Tag.isAuthor(user, _id);
+    return await Tag.update(_id, update);
+  }
+
+  @Router.delete("/tags/:_id")
+  async deleteTag(session: WebSessionDoc, _id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Tag.isAuthor(user, _id);
+    return await Tag.delete(_id);
+  }
+
+  // ########################################################
+  // Discovery Routes
+
+  // ########################################################
+  // Meetup Routes
+
+  // ########################################################
+  // Time-limited Engagement Routes
 }
 
 export default getExpressRouter(new Routes());

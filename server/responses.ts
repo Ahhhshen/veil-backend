@@ -1,6 +1,7 @@
 import { User } from "./app";
 import { AlreadyFriendsError, FriendNotFoundError, FriendRequestAlreadyExistsError, FriendRequestDoc, FriendRequestNotFoundError } from "./concepts/friend";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/post";
+import { TagAuthorNotMatchError, TagDoc } from "./concepts/tag";
 import { Router } from "./framework/router";
 
 /**
@@ -28,6 +29,25 @@ export default class Responses {
   }
 
   /**
+   * Convert TagDoc into more readable format for the frontend by converting the author id into a username.
+   */
+  static async tag(tag: TagDoc | null) {
+    if (!tag) {
+      return tag;
+    }
+    const author = await User.getUserById(tag.author);
+    return { ...tag, author: author.username };
+  }
+
+  /**
+   * Same as {@link tag} but for an array of TagDoc for improved performance.
+   */
+  static async tags(tags: TagDoc[]) {
+    const authors = await User.idsToUsernames(tags.map((tag) => tag.author));
+    return tags.map((tag, i) => ({ ...tag, author: authors[i] }));
+  }
+
+  /**
    * Convert FriendRequestDoc into more readable format for the frontend
    * by converting the ids into usernames.
    */
@@ -40,6 +60,11 @@ export default class Responses {
 }
 
 Router.registerError(PostAuthorNotMatchError, async (e) => {
+  const username = (await User.getUserById(e.author)).username;
+  return e.formatWith(username, e._id);
+});
+
+Router.registerError(TagAuthorNotMatchError, async (e) => {
   const username = (await User.getUserById(e.author)).username;
   return e.formatWith(username, e._id);
 });
