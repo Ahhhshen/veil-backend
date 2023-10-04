@@ -115,6 +115,38 @@ const operations: operation[] = [
   },
   // ########################################################
   // Discovery
+  {
+    name: "Create Discovery",
+    endpoint: "/api/discoveries",
+    method: "POST",
+    fields: {},
+  },
+  {
+    name: "Discover New Posts",
+    endpoint: "/api/discoveries/:id",
+    method: "GET",
+    fields: { numberOfPosts: "input" },
+  },
+  {
+    name: "Get Seen Posts",
+    endpoint: "/api/seenposts",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Delete Discovery",
+    endpoint: "/api/discoveries/:id",
+    method: "DELETE",
+    fields: { id: "input" },
+  },
+  // ########################################################
+  // Friend
+
+  // ########################################################
+  // Meetup
+
+  // ########################################################
+  // TimeLimitedEngagement
 ];
 
 // Do not edit below here.
