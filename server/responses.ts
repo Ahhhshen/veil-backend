@@ -1,4 +1,5 @@
 import { User } from "./app";
+import { ContentCabinetDoc } from "./concepts/contentcabinet";
 import { AlreadyFriendsError, FriendNotFoundError, FriendRequestAlreadyExistsError, FriendRequestDoc, FriendRequestNotFoundError } from "./concepts/friend";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/post";
 import { TagAuthorNotMatchError, TagDoc } from "./concepts/tag";
@@ -9,6 +10,17 @@ import { Router } from "./framework/router";
  * For example, it converts a {@link PostDoc} into a more readable format for the frontend.
  */
 export default class Responses {
+  /**
+   * Convert ContentCabinetDoc into more readable format for the frontend by converting the author id into a username.
+   */
+  static async contentCabinet(contentCabinet: ContentCabinetDoc | null) {
+    if (!contentCabinet) {
+      return contentCabinet;
+    }
+    const author = await User.getUserById(contentCabinet.owner);
+    return { ...contentCabinet, author: author.username };
+  }
+
   /**
    * Convert PostDoc into more readable format for the frontend by converting the author id into a username.
    */

@@ -56,6 +56,20 @@ const operations: operation[] = [
     fields: { username: "input" },
   },
   // ########################################################
+  // Content Cabinet
+  {
+    name: "Get Content Cabinet",
+    endpoint: "/api/cabinet",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Create Content Cabinet",
+    endpoint: "/api/cabinet",
+    method: "POST",
+    fields: {},
+  },
+  // ########################################################
   // Post
   {
     name: "Get Posts (empty for all)",
@@ -84,10 +98,16 @@ const operations: operation[] = [
   // ########################################################
   // Tag
   {
-    name: "Create Tag for Posts",
-    endpoint: "/api/tags/:name :posts",
+    name: "Create Tag for Post",
+    endpoint: "/api/tags/:name/:post_id",
     method: "POST",
-    fields: { name: "input", posts: "input" },
+    fields: { name: "input", post_id: "input" },
+  },
+  {
+    name: "Add Tag to Post",
+    endpoint: "/api/tags/:id/:post_id",
+    method: "PUT",
+    fields: { id: "input", post_id: "input" },
   },
   {
     name: "Get Tags by Author",
@@ -97,15 +117,21 @@ const operations: operation[] = [
   },
   {
     name: "Get Tags by Post",
-    endpoint: "/api/tags/:post",
+    endpoint: "/api/tags/:post_id",
     method: "GET",
-    fields: { post: "input" },
+    fields: { post_id: "input" },
+  },
+  {
+    name: "Get Tag by Id",
+    endpoint: "/api/tags/:id",
+    method: "GET",
+    fields: { id: "input" },
   },
   {
     name: "Update Tag",
     endpoint: "/api/tags/:id",
     method: "PATCH",
-    fields: { id: "input", update: { name: "input", posts: "input" } },
+    fields: { id: "input", update: { name: "input" } },
   },
   {
     name: "Delete Tag",
@@ -123,7 +149,7 @@ const operations: operation[] = [
   },
   {
     name: "Discover New Posts",
-    endpoint: "/api/discoveries/:id",
+    endpoint: "/api/discoveries/:numberOfPosts",
     method: "GET",
     fields: { numberOfPosts: "input" },
   },

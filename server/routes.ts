@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Friend, Post, Tag, User, WebSession } from "./app";
+import { ContentCabinet, Discovery, Friend, Post, Tag, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { TagDoc } from "./concepts/tag";
 import { UserDoc } from "./concepts/user";
@@ -61,6 +61,22 @@ class Routes {
   }
 
   // ########################################################
+  // Content Cabinet Routes
+  @Router.get("/cabinet")
+  async getContentCabinet(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const cabinet = await ContentCabinet.getByOwner(user);
+    return Responses.contentCabinet(cabinet);
+  }
+
+  @Router.post("/cabinet")
+  async createContentCabinet(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const created = await ContentCabinet.create(user);
+    return { msg: created.msg, contentCabinet: created.contentCabinet };
+  }
+
+  // ########################################################
   // Post Routes
   @Router.get("/posts")
   async getPosts(author?: string) {
@@ -78,7 +94,18 @@ class Routes {
   async createPost(session: WebSessionDoc, content: string, options?: PostOptions) {
     const user = WebSession.getUser(session);
     const created = await Post.create(user, content, options);
-    return { msg: created.msg, post: await Responses.post(created.post) };
+    const post = created.post;
+    if (post) {
+      // Add this post to the user's content cabinet
+      await ContentCabinet.addContent(user, post._id);
+      // Add this post's tags to the user's content cabinet
+      if (post.tags) {
+        await ContentCabinet.addTags(user, post.tags);
+      }
+      return { msg: created.msg, post };
+    } else {
+      throw new Error("Failed to create post");
+    }
   }
 
   @Router.patch("/posts/:_id")
@@ -92,7 +119,113 @@ class Routes {
   async deletePost(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
+    // Remove this post from the user's content cabinet
+    await ContentCabinet.removeContent(user, _id);
+    // Remove this post's tags from the user's content cabinet
+    const post = await Post.getById(_id);
+    if (post.tags) {
+      await ContentCabinet.removeTags(user, post.tags);
+    }
     return Post.delete(_id);
+  }
+
+  // ########################################################
+  // Tag Routes
+  @Router.post("/tags/:name/:post_id")
+  async createTag(session: WebSessionDoc, name: string, post_id: ObjectId) {
+    const user = WebSession.getUser(session);
+    const created = await Tag.create(user, name, [post_id]);
+    // Sync the tag with the posts and user's content cabinet
+    const tag = await Responses.tag(created.tag);
+    if (tag) {
+      // Add this tag to the post's tags
+      tag.taggedposts.forEach(async (post) => {
+        await Post.addTags(post, [tag._id]);
+      });
+      // Add this tag to the user's content cabinet
+      await ContentCabinet.addTags(user, [tag._id]);
+    }
+    return { msg: created.msg, tag };
+  }
+
+  @Router.put("/tags/:_id/:post_id")
+  async addTagToPost(session: WebSessionDoc, _id: ObjectId, post_id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Tag.isAuthor(user, _id);
+    // Add this tag to the post's tags
+    await Post.addTags(post_id, [_id]);
+    // Add this post to the tag's taggedposts
+    await Tag.addPosts(_id, [post_id]);
+    return await Responses.tag(await Tag.getById(_id));
+  }
+
+  @Router.get("/tags")
+  async getUserTags(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    return await Responses.tags(await Tag.getByAuthor(user));
+  }
+
+  @Router.get("/tags/:post_id")
+  async getPostTags(post_id: ObjectId) {
+    const post = await Post.getById(post_id);
+    if (post) {
+      const tags = await Tag.tags.readMany({ _id: { $in: post.tags } });
+      return await Responses.tags(tags);
+    }
+  }
+
+  @Router.get("/tags/:id")
+  async getTag(id: ObjectId) {
+    return await Responses.tag(await Tag.getById(id));
+  }
+
+  @Router.patch("/tags/:id")
+  async updateTag(session: WebSessionDoc, id: ObjectId, update: Partial<TagDoc>) {
+    const user = WebSession.getUser(session);
+    await Tag.isAuthor(user, id);
+    return await Tag.update(id, update);
+  }
+
+  @Router.delete("/tags/:id")
+  async deleteTag(session: WebSessionDoc, id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Tag.isAuthor(user, id);
+    // Remove this tag from the user's content cabinet and all posts
+    const tag = await Tag.getById(id);
+    if (tag) {
+      // remove this tag from all posts
+      tag.taggedposts.forEach(async (post) => {
+        await Post.removeTags(post, [tag._id]);
+      });
+      // remove this tag from the user's content cabinet
+      await ContentCabinet.removeTags(user, [tag._id]);
+      // remove this tag from the user's discovery's preference
+      await Discovery.removeTagFromPreference(user, tag._id);
+    }
+    return await Tag.delete(id);
+  }
+
+  // ########################################################
+  // Discovery Routes
+  @Router.post("/discoveries")
+  async createDiscovery(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const created = await Discovery.create(user);
+    return { msg: created.msg, discovery: created.discovery };
+  }
+
+  @Router.get("/discoveries/:numberOfPosts")
+  async discoverNewPosts(session: WebSessionDoc, numberOfPosts?: number) {
+    const user = WebSession.getUser(session);
+    const posts = await Discovery.getDiscoverredPosts(user);
+    const posts_to_update = posts.slice(0, numberOfPosts);
+    return await Responses.posts(posts_to_update);
+  }
+
+  @Router.get("/discoveries")
+  async getSeenPosts(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    return await Responses.posts(await Discovery.getSeenPosts(user));
   }
 
   // ########################################################
@@ -143,44 +276,6 @@ class Routes {
     const fromId = (await User.getUserByUsername(from))._id;
     return await Friend.rejectRequest(fromId, user);
   }
-
-  // ########################################################
-  // Tag Routes
-  @Router.post("/tags/:name :posts")
-  async createTag(session: WebSessionDoc, name: string, posts: ObjectId[]) {
-    const user = WebSession.getUser(session);
-    const created = await Tag.create(user, name, posts);
-    return { msg: created.msg, tag: await Responses.tag(created.tag) };
-  }
-
-  @Router.get("/tags")
-  async getUserTags(session: WebSessionDoc) {
-    const user = WebSession.getUser(session);
-    return await Responses.tags(await Tag.getByAuthor(user));
-  }
-
-  @Router.get("/tags/:post")
-  async getPostTags(post: string) {
-    const postId = new ObjectId(post);
-    return await Responses.tags(await Tag.getByPost(postId));
-  }
-
-  @Router.patch("/tags/:_id")
-  async updateTag(session: WebSessionDoc, _id: ObjectId, update: Partial<TagDoc>) {
-    const user = WebSession.getUser(session);
-    await Tag.isAuthor(user, _id);
-    return await Tag.update(_id, update);
-  }
-
-  @Router.delete("/tags/:_id")
-  async deleteTag(session: WebSessionDoc, _id: ObjectId) {
-    const user = WebSession.getUser(session);
-    await Tag.isAuthor(user, _id);
-    return await Tag.delete(_id);
-  }
-
-  // ########################################################
-  // Discovery Routes
 
   // ########################################################
   // Meetup Routes
