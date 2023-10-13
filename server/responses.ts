@@ -22,6 +22,14 @@ export default class Responses {
   }
 
   /**
+   * Same as {@link contentCabinet} but for an array of ContentCabinetDoc for improved performance.
+   */
+  static async contentCabinets(contentCabinets: ContentCabinetDoc[]) {
+    const authors = await User.idsToUsernames(contentCabinets.map((contentCabinet) => contentCabinet.owner));
+    return contentCabinets.map((contentCabinet, i) => ({ ...contentCabinet, author: authors[i] }));
+  }
+
+  /**
    * Convert PostDoc into more readable format for the frontend by converting the author id into a username.
    */
   static async post(post: PostDoc | null) {

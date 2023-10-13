@@ -76,7 +76,7 @@ export default class TagConcept {
     }
   }
 
-  private async getTags(query: Filter<TagDoc>) {
+  async getTags(query: Filter<TagDoc>) {
     const tags = await this.tags.readMany(query, {
       sort: { dateUpdated: -1 },
     });
@@ -103,7 +103,7 @@ export default class TagConcept {
     const authorTags = await this.getByAuthor(author);
     const existingTag = authorTags.find((tag) => tag.name === name);
     if (existingTag) {
-      throw new NotAllowedError(`Tag ${name} already created by ${author}!`);
+      throw new NotAllowedError(`Tag "${name}" already created by ${author}!`);
     }
   }
 }

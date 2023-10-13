@@ -30,6 +30,7 @@ export default class DiscoveryConcept {
   }
 
   async create(user: ObjectId) {
+    await this.canCreate(user);
     // create a new discovery for the user
     const _id = await this.discoveries.createOne({ user, discoverred: [] });
     // if the user has not seen any posts, create a new seenPost doc
@@ -43,6 +44,14 @@ export default class DiscoveryConcept {
     const discoverred = await this.discoverPosts(user, this.MAX_DISCOVERRED);
     await this.update(_id, { discoverred });
     return { msg: "Discovery successfully created!", discovery: await this.discoveries.readOne({ _id }) };
+  }
+
+  async getByUser(user: ObjectId) {
+    const discovery = await this.discoveries.readOne({ user });
+    if (!discovery) {
+      throw new NotFoundError(`Discovery for user ${user} does not exist!`);
+    }
+    return discovery;
   }
 
   async getDiscoverredPosts(user: ObjectId) {
@@ -64,7 +73,7 @@ export default class DiscoveryConcept {
 
   async getSeenPosts(user: ObjectId) {
     const seenPost = await this.seenPosts.readOne({ user });
-    if (!seenPost) {
+    if (!seenPost || seenPost.seen.length === 0) {
       throw new NotFoundError(`User ${user} has not seen any posts!`);
     }
     const posts = await this.posts.readMany({ _id: { $in: seenPost.seen } });
@@ -77,27 +86,29 @@ export default class DiscoveryConcept {
     return { msg: "Discovery successfully updated!" };
   }
 
-  async updateSeenPosts(user: ObjectId, seen: ObjectId[]) {
+  async addPostToSeen(user: ObjectId, seen: ObjectId) {
     const seenPost = await this.seenPosts.readOne({ user });
     if (!seenPost) {
       throw new NotFoundError(`User ${user} has not seen any posts!`);
     }
-    if (seenPost.seen.length + seen.length > this.MAX_SEENPOSTS) {
-      // pop the oldest seen posts
-      const numToRemove = seenPost.seen.length + seen.length - this.MAX_SEENPOSTS;
-      const seenToRemove = seenPost.seen.slice(0, numToRemove);
-      await this.seenPosts.updateOne({ user }, { seen: seenPost.seen.slice(numToRemove).concat(seen) });
-      // remove the seen posts from the discovery
-      const discovery = await this.discoveries.readOne({ user });
-      if (!discovery || discovery.discoverred.length === 0) {
-        throw new NotFoundError(`User ${user} has not discovered any posts!`);
-      }
-      const removed = discovery.discoverred.filter((post) => !seenToRemove.includes(post));
-      // add new posts to the discovery
-      const toAdd = await this.discoverPosts(user, numToRemove);
-      await this.discoveries.updateOne({ user }, { discoverred: removed.concat(toAdd) });
+    if (seenPost.seen.length + 1 > this.MAX_SEENPOSTS) {
+      // pop the oldest seen post
+      await this.seenPosts.updateOne({ user }, { seen: seenPost.seen.slice(0, this.MAX_SEENPOSTS - 1) });
+    }
+    // add the new seen post to the front
+    await this.seenPosts.updateOne({ user }, { seen: [seen].concat(seenPost.seen) });
+    return { msg: "Seen posts successfully updated!" };
+  }
+
+  async removePostFromSeen(user: ObjectId, seen: ObjectId) {
+    const seenPost = await this.seenPosts.readOne({ user });
+    if (!seenPost) {
+      throw new NotFoundError(`User ${user} has not seen any posts!`);
+    }
+    if (!seenPost.seen.includes(seen)) {
+      throw new NotAllowedError(`User ${user} has not seen post ${seen}!`);
     } else {
-      await this.seenPosts.updateOne({ user }, { seen: seenPost.seen.concat(seen) });
+      await this.seenPosts.updateOne({ user }, { seen: seenPost.seen.filter((s) => s.toString() !== seen.toString()) });
     }
     return { msg: "Seen posts successfully updated!" };
   }
@@ -142,6 +153,10 @@ export default class DiscoveryConcept {
     }
   }
 
+  // ############################################################
+  // # Helper functions
+  // ############################################################
+
   /**
    * Purpose: Get a list of posts that the user has not seen
    * Principle: return the number of num posts that the user has not seen
@@ -157,13 +172,23 @@ export default class DiscoveryConcept {
     // Note: the posts are sorted by dateUpdated in descending order
     // TODO: better recommendation algorithm
     const posts = await this.posts.readMany(
-      { _id: { $nin: seen }, tags: { $in: seenPost.preference } },
+      { author: { $ne: user }, _id: { $nin: seen }, tags: { $in: seenPost.preference } },
       {
         sort: { dateUpdated: -1 },
         limit: num,
       },
     );
-    return posts.map((post) => post._id);
+    if (posts) {
+      return posts.map((post) => post._id);
+    }
+    return [];
+  }
+
+  private async canCreate(user: ObjectId) {
+    const discovery = await this.discoveries.readOne({ user });
+    if (discovery) {
+      throw new NotAllowedError(`Discovery for user ${user} already exists!`);
+    }
   }
 
   /**

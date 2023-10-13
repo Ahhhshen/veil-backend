@@ -11,10 +11,11 @@ export interface ContentCabinetDoc extends BaseDoc {
 
 export default class ContentCabinetConcept {
   public readonly contentCabinets = new DocCollection<ContentCabinetDoc>("contentCabinets");
+  private readonly MAX_TAGS = 999;
 
   async create(owner: ObjectId) {
     await this.canCreate(owner);
-    const _id = await this.contentCabinets.createOne({ owner, contents: [] });
+    const _id = await this.contentCabinets.createOne({ owner, contents: [], tags: [] });
     return { msg: "Content cabinet successfully created!", contentCabinet: await this.contentCabinets.readOne({ _id }) };
   }
 
@@ -24,6 +25,13 @@ export default class ContentCabinetConcept {
       throw new NotFoundError(`Content cabinet for user ${owner} does not exist!`);
     }
     return contentCabinet;
+  }
+
+  async getContentCabinets(query: Partial<ContentCabinetDoc>) {
+    const contentCabinets = await this.contentCabinets.readMany(query, {
+      sort: { dateUpdated: -1 },
+    });
+    return contentCabinets;
   }
 
   async addContent(owner: ObjectId, content_id: ObjectId) {
@@ -43,31 +51,37 @@ export default class ContentCabinetConcept {
     if (!contentCabinet) {
       throw new NotFoundError(`Content cabinet for user ${owner} does not exist!`);
     }
-    if (contentCabinet.contents.includes(content_id)) {
-      await this.contentCabinets.updateOne({ owner }, { contents: contentCabinet.contents.filter((c) => c !== content_id) });
-    }
+
+    const newContents = contentCabinet.contents.filter((c) => c.toString() !== content_id.toString());
+    await this.update(contentCabinet._id, { contents: newContents });
     return { msg: "Content successfully removed!" };
   }
 
-  async addTags(owner: ObjectId, tags: ObjectId[]) {
+  async addTag(owner: ObjectId, tag: ObjectId) {
     const contentCabinet = await this.contentCabinets.readOne({ owner });
     if (!contentCabinet) {
       throw new NotFoundError(`Content cabinet for user ${owner} does not exist!`);
     }
-    const newTags = tags.filter((tag) => !contentCabinet.tags.includes(tag));
-    if (newTags) {
-      await this.contentCabinets.updateOne({ owner }, { tags: contentCabinet.tags.concat(newTags) });
+    if (contentCabinet.tags.length >= this.MAX_TAGS) {
+      throw new NotAllowedError(`Content cabinet already has ${this.MAX_TAGS} tags!`);
+    } else {
+      try {
+        await this.isNotTagged(contentCabinet._id, tag);
+      } catch (e) {
+        return { msg: "Content cabinet already has this tag!" };
+      }
     }
+    await this.contentCabinets.updateOne({ owner }, { tags: contentCabinet.tags.concat([tag]) });
 
     return { msg: "Tags successfully added!" };
   }
 
-  async removeTags(owner: ObjectId, tags: ObjectId[]) {
+  async removeTag(owner: ObjectId, tag: ObjectId) {
     const contentCabinet = await this.contentCabinets.readOne({ owner });
     if (!contentCabinet) {
       throw new NotFoundError(`Content cabinet for user ${owner} does not exist!`);
     }
-    const newTags = contentCabinet.tags.filter((tag) => !tags.includes(tag));
+    const newTags = contentCabinet.tags.filter((t) => t.toString() !== tag.toString());
     await this.contentCabinets.updateOne({ owner }, { tags: newTags });
     return { msg: "Tags successfully removed!" };
   }
@@ -102,11 +116,23 @@ export default class ContentCabinetConcept {
 
   private sanitizeUpdate(update: Partial<ContentCabinetDoc>) {
     // Make sure the update cannot change the owner.
-    const allowedUpdates = ["content"];
+    const allowedUpdates = ["contents", "tags"];
     for (const key in update) {
       if (!allowedUpdates.includes(key)) {
         throw new NotAllowedError(`Cannot update ${key}!`);
       }
+    }
+  }
+
+  private async isNotTagged(_id: ObjectId, tag: ObjectId) {
+    const contentCabinet = await this.contentCabinets.readOne({ _id });
+    if (!contentCabinet) {
+      throw new NotFoundError(`Content cabinet ${_id} does not exist!`);
+    }
+    // Stringify the ObjectId to compare.
+    const cabinetTags = contentCabinet.tags.map((t) => t.toString());
+    if (cabinetTags.includes(tag.toString())) {
+      throw new NotAllowedError(`Content cabinet ${_id} already has tag ${tag}!`);
     }
   }
 }

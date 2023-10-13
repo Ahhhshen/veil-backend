@@ -12,7 +12,7 @@ export interface PostDoc extends BaseDoc {
   content: string;
   tags: ObjectId[];
   options?: PostOptions;
-  isExpired: boolean;
+  isVeiled: boolean;
 }
 
 export default class PostConcept {
@@ -20,7 +20,7 @@ export default class PostConcept {
 
   async create(author: ObjectId, content: string, options?: PostOptions) {
     await this.canCreate(author, content);
-    const _id = await this.posts.createOne({ author, content, tags: [], options, isExpired: false });
+    const _id = await this.posts.createOne({ author, content, tags: [], options, isVeiled: false });
     return { msg: "Post successfully created!", post: await this.posts.readOne({ _id }) };
   }
 
@@ -51,24 +51,26 @@ export default class PostConcept {
     return tag;
   }
 
-  async addTags(_id: ObjectId, tags: ObjectId[]) {
+  async addTag(_id: ObjectId, tag: ObjectId) {
     const post = await this.posts.readOne({ _id });
     if (!post) {
       throw new NotFoundError(`Post ${_id} does not exist!`);
     }
-    const newTags = tags.filter((tag) => !post.tags.includes(tag));
-    if (newTags.length > 0) {
-      await this.posts.updateOne({ _id }, { tags: post.tags?.concat(newTags) });
+    try {
+      await this.isNotTagged(_id, tag);
+    } catch (e) {
+      return { msg: "Post already tagged!" };
     }
-    return { msg: "Tags successfully added!" };
+    await this.posts.updateOne({ _id }, { tags: post.tags.concat([tag]) });
+    return { msg: "Tag successfully added!" };
   }
 
-  async removeTags(_id: ObjectId, tags: ObjectId[]) {
+  async removeTag(_id: ObjectId, tag: ObjectId) {
     const post = await this.posts.readOne({ _id });
     if (!post) {
       throw new NotFoundError(`Post ${_id} does not exist!`);
     }
-    const newTags = post.tags.filter((tag) => !tags.includes(tag));
+    const newTags = post.tags.filter((t) => t.toString() !== tag.toString());
     await this.posts.updateOne({ _id }, { tags: newTags });
     return { msg: "Tags successfully removed!" };
   }
@@ -94,6 +96,10 @@ export default class PostConcept {
     }
   }
 
+  // ###############################
+  // ## Helpers
+  // ###############################
+
   private async canCreate(author: ObjectId, content: string) {
     if (content.length === 0) {
       throw new NotAllowedError(`Post content cannot be empty!`);
@@ -102,11 +108,23 @@ export default class PostConcept {
 
   private sanitizeUpdate(update: Partial<PostDoc>) {
     // Make sure the update cannot change the author.
-    const allowedUpdates = ["content", "options"];
+    const allowedUpdates = ["content", "options", "isVeiled", "tags"];
     for (const key in update) {
       if (!allowedUpdates.includes(key)) {
         throw new NotAllowedError(`Cannot update '${key}' field!`);
       }
+    }
+  }
+
+  private async isNotTagged(_id: ObjectId, tag: ObjectId) {
+    const post = await this.posts.readOne({ _id });
+    if (!post) {
+      throw new NotFoundError(`Post ${_id} does not exist!`);
+    }
+    // get stringified tags
+    const postTags = post.tags.map((tag) => tag.toString());
+    if (postTags.includes(tag.toString())) {
+      throw new NotAllowedError(`Post ${_id} is tagged with ${tag}!`);
     }
   }
 }

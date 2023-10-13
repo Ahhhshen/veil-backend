@@ -15,6 +15,6 @@ export const ContentCabinet = new ContentCabinetConcept();
 export const Post = new PostConcept();
 export const Friend = new FriendConcept();
 export const Tag = new TagConcept();
-export const Meetup = new MeetupConcept();
 export const TimeLimitedEngagement = new TimeLimitedEngagementConcept();
+export const Meetup = new MeetupConcept(Friend.friends);
 export const Discovery = new DiscoveryConcept(Post.posts, ContentCabinet.contentCabinets);

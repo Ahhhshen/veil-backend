@@ -13,6 +13,7 @@ type operation = {
 const operations: operation[] = [
   // ########################################################
   // User & Session
+  // ########################################################
   {
     name: "Get Session User (logged in user)",
     endpoint: "/api/session",
@@ -57,9 +58,16 @@ const operations: operation[] = [
   },
   // ########################################################
   // Content Cabinet
+  // ########################################################
   {
     name: "Get Content Cabinet",
     endpoint: "/api/cabinet",
+    method: "GET",
+    fields: { owner: "input" },
+  },
+  {
+    name: "Get Contents in Cabinet",
+    endpoint: "/api/cabinet/contents",
     method: "GET",
     fields: {},
   },
@@ -69,8 +77,33 @@ const operations: operation[] = [
     method: "POST",
     fields: {},
   },
+  {
+    name: "Veil content in Cabinet",
+    endpoint: "/api/cabinet/veil/:content_id",
+    method: "PATCH",
+    fields: { content_id: "input" },
+  },
+  {
+    name: "Unveil content in Cabinet",
+    endpoint: "/api/cabinet/unveil/:content_id",
+    method: "PATCH",
+    fields: { content_id: "input" },
+  },
+  {
+    name: "Remove Content from Cabinet",
+    endpoint: "/api/cabinet/contents/:content_id",
+    method: "PATCH",
+    fields: { content_id: "input" },
+  },
+  {
+    name: "Delete Content Cabinet",
+    endpoint: "/api/cabinet",
+    method: "DELETE",
+    fields: {},
+  },
   // ########################################################
   // Post
+  // ########################################################
   {
     name: "Get Posts (empty for all)",
     endpoint: "/api/posts",
@@ -97,6 +130,7 @@ const operations: operation[] = [
   },
   // ########################################################
   // Tag
+  // ########################################################
   {
     name: "Create Tag for Post",
     endpoint: "/api/tags/:name/:post_id",
@@ -105,12 +139,12 @@ const operations: operation[] = [
   },
   {
     name: "Add Tag to Post",
-    endpoint: "/api/tags/:id/:post_id",
+    endpoint: "/api/tag/:id/:post_id",
     method: "PUT",
     fields: { id: "input", post_id: "input" },
   },
   {
-    name: "Get Tags by Author",
+    name: "Get Tags (empty for all)",
     endpoint: "/api/tags",
     method: "GET",
     fields: { author: "input" },
@@ -123,7 +157,7 @@ const operations: operation[] = [
   },
   {
     name: "Get Tag by Id",
-    endpoint: "/api/tags/:id",
+    endpoint: "/api/tag/:id",
     method: "GET",
     fields: { id: "input" },
   },
@@ -141,6 +175,7 @@ const operations: operation[] = [
   },
   // ########################################################
   // Discovery
+  // ########################################################
   {
     name: "Create Discovery",
     endpoint: "/api/discoveries",
@@ -155,24 +190,140 @@ const operations: operation[] = [
   },
   {
     name: "Get Seen Posts",
-    endpoint: "/api/seenposts",
+    endpoint: "/api/discovery/seen",
     method: "GET",
     fields: {},
   },
   {
-    name: "Delete Discovery",
-    endpoint: "/api/discoveries/:id",
+    name: "Add Seen Post",
+    endpoint: "/api/discovery/seen/:post_id",
+    method: "PATCH",
+    fields: { post_id: "input" },
+  },
+  {
+    name: "Remove Seen Post",
+    endpoint: "/api/discovery/seen/:post_id",
     method: "DELETE",
-    fields: { id: "input" },
+    fields: { post_id: "input" },
+  },
+  {
+    name: "Delete Discovery",
+    endpoint: "/api/discoveries/",
+    method: "DELETE",
+    fields: {},
   },
   // ########################################################
   // Friend
+  // ########################################################
+  {
+    name: "Get friends",
+    endpoint: "/api/friends",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Delete friend",
+    endpoint: "/api/friends/:friend",
+    method: "DELETE",
+    fields: { friend_name: "input" },
+  },
+  {
+    name: "Get friend requests",
+    endpoint: "/api/friend/requests",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Send friend request",
+    endpoint: "/api/friend/requests/:to",
+    method: "POST",
+    fields: { to: "input" },
+  },
+  {
+    name: "Delete friend request",
+    endpoint: "/api/friend/requests/:to",
+    method: "DELETE",
+    fields: { to: "input" },
+  },
+  {
+    name: "Accept friend request",
+    endpoint: "/api/friend/accept/:from",
+    method: "PUT",
+    fields: { from: "input" },
+  },
+  {
+    name: "Reject friend request",
+    endpoint: "/api/friend/reject/:from",
+    method: "PUT",
+    fields: { from: "input" },
+  },
 
   // ########################################################
   // Meetup
-
+  // ########################################################
+  {
+    name: "Get User Meetups",
+    endpoint: "/api/meetups",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Delete Meetup",
+    endpoint: "/api/meetups/:friend",
+    method: "DELETE",
+    fields: { friend: "input" },
+  },
+  {
+    name: "Get Meetup Invitations",
+    endpoint: "/api/meetup/invitations",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Send Meetup Invitation",
+    endpoint: "/api/meetup/invitation/:to",
+    method: "POST",
+    fields: { to: "input" },
+  },
+  {
+    name: "Delete Meetup Invitation",
+    endpoint: "/api/meetup/invitation/:to",
+    method: "DELETE",
+    fields: { to: "input" },
+  },
+  {
+    name: "Accept Meetup Invitation",
+    endpoint: "/api/meetup/accept/:from",
+    method: "PUT",
+    fields: { from: "input" },
+  },
+  {
+    name: "Reject Meetup Invitation",
+    endpoint: "/api/meetup/reject/:from",
+    method: "PUT",
+    fields: { from: "input" },
+  },
   // ########################################################
   // TimeLimitedEngagement
+  // ########################################################
+  {
+    name: "Get User's TimeLimitedEngagements",
+    endpoint: "/api/timelimitedengagements",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Set TimeLimitedEngagement",
+    endpoint: "/api/timelimitedengagement/:content_id/:time",
+    method: "POST",
+    fields: { content_id: "input", time: "input" },
+  },
+  {
+    name: "Remove TimeLimitedEngagement",
+    endpoint: "/api/timelimitedengagement/:content_id",
+    method: "DELETE",
+    fields: { content_id: "input" },
+  },
 ];
 
 // Do not edit below here.
